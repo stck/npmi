@@ -1,0 +1,10 @@
+.git
+build/*
+cmake-build-*
+docker
+.clang-format
+.editorconfig
+.gitignore
+.github
+*.ps1
+*.i[m]l

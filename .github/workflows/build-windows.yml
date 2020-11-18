@@ -1,0 +1,23 @@
+name: Windows
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v1
+      - name: clean
+        run: cmake --clean-first -S . -B .\build\ -DCMAKE_BUILD_TYPE=Release -G "MinGW Makefiles"
+      - name: build
+        run: cmake --build ./build
+      - name: test
+        run: cd build && ctest
+      - name: upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: npmci.windows-latest
+          path: build/npmci.exe

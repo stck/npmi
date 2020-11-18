@@ -1,0 +1,7 @@
+build/*
+!build/.gitkeep
+cmake-*
+.idea
+test/node_modules
+*.sh
+*.ps1

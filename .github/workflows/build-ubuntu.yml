@@ -1,0 +1,25 @@
+name: Ubuntu
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v1
+      - name: update
+        run: sudo apt update -qq && sudo apt install cmake make g++ -y -qq
+      - name: clean
+        run: cd build && cmake --clean-first -DCMAKE_BUILD_TYPE=Release -G "Unix Makefiles" --build "../"
+      - name: build
+        run: cd build && cmake --build . --target all -- -j 6;
+      - name: test
+        run: cd build && ctest
+      - name: upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: npmci.ubuntu-latest
+          path: build/npmci

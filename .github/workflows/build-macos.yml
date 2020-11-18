@@ -1,0 +1,23 @@
+name: Macos
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v1
+      - name: clean
+        run: cd build && cmake --clean-first -DCMAKE_BUILD_TYPE=Release -G "Unix Makefiles" --build "../"
+      - name: build
+        run: cd build && cmake --build . --target all -- -j 6;
+      - name: test
+        run: cd build && ctest
+      - name: upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: npmci.macos-latest
+          path: build/npmci
