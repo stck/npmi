@@ -17,17 +17,17 @@ namespace packagelock {
 
   class V1Parser {
   private:
-    static std::string substring(const std::string& source, int from, int to) {
+    static auto substring(const std::string& source, int from, int to) -> std::string {
       return substring(source, from, to, false);
     }
 
-    static std::string substring(const std::string& source, int from, int to, bool cutLast) {
+    static auto substring(const std::string& source, int from, int to, bool cutLast) -> std::string {
       if (to == source.length() - 1) return source.substr(from);
       std::string result = source.substr(from, to - from + (cutLast ? 0 : 1));
       return result;
     }
 
-    static int findPairClose(const std::string& source, const int fromIndex, const char pairOpen, const char pairClose) {
+    static auto findPairClose(const std::string& source, const int fromIndex, const char pairOpen, const char pairClose) -> int {
       int level    = 1;
       int iterDone = 0;
       int lastPos  = fromIndex;
@@ -59,7 +59,7 @@ namespace packagelock {
     }
 
   protected:
-    static std::string parseValue(const std::string& source, const std::string& key, const std::string& fallback) {
+    static auto parseValue(const std::string& source, const std::string& key, const std::string& fallback) -> std::string {
       int firstOS  = source.find_first_of(OS, 1);
       int keyStart = source.find(key);
       if (keyStart != std::string::npos && (keyStart < firstOS || firstOS == std::string::npos)) {
@@ -78,7 +78,7 @@ namespace packagelock {
       return fallback;
     }
 
-    static Dependency parseDependency(const std::string& root, const std::string& dep) {  // NOLINT(misc-no-recursion)
+    static auto parseDependency(const std::string& root, const std::string& dep) -> Dependency {  // NOLINT(misc-no-recursion)
       std::string ignore;
       ignore += OK;
       ignore += OD;
@@ -98,7 +98,7 @@ namespace packagelock {
       };
     }
 
-    static Dependencies parseDependencies(const std::string& root, const std::string& i) {  // NOLINT(misc-no-recursion)
+    static auto parseDependencies(const std::string& root, const std::string& i) -> Dependencies {  // NOLINT(misc-no-recursion)
       Dependencies dependencies;
       int depPos = i.find(DEP, 0);
 
@@ -124,7 +124,7 @@ namespace packagelock {
     }
 
   public:
-    static Dependencies parse(std::string& i) {
+    static auto parse(std::string& i) -> Dependencies {
       std::vector<char> delChr{'\t', '\n', '\r', ' '};
       int start(i.find_first_of(OS));
       int end(i.find_last_of(OE));

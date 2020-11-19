@@ -1,8 +1,6 @@
 #include "../../src/format/tar.hpp"
 #include <cassert>
-#include <string>
 #include <tuple>
-#include <vector>
 
 namespace tar {
   void test_decodeOctal() {
@@ -29,7 +27,7 @@ namespace tar {
   }
 }  // namespace tar
 
-int main() {
+auto main() -> int {
   tar::test_decodeOctal();
   tar::test_decodeString();
 

@@ -280,7 +280,7 @@ unsigned int Decompressor::Feed(const void* compressed_data, unsigned int compre
 
   do {
     unsigned int block_type;
-    unsigned int block_result;
+    unsigned int block_result = -1;
 
     final_block = bit_reader.GetBits(1);
     block_type  = bit_reader.GetBits(2);
@@ -302,8 +302,9 @@ unsigned int Decompressor::Feed(const void* compressed_data, unsigned int compre
         return -1;
     }
 
-    if (block_result == -1)
+    if (block_result == -1) {
       return -1;
+    }
 
     current_out_offset += block_result;
   } while (!final_block);

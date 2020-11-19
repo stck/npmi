@@ -1,17 +1,21 @@
+#ifndef ARGS_HPP
+#define ARGS_HPP
+
 #include <map>
 #include <string>
 #include <tuple>
 
 
 namespace args {
-  inline std::map<std::string, bool> _args;
+  namespace {
+    inline std::map<std::string, bool> _args;
+  }  // namespace
 
-  inline bool get(const std::string& key, bool fallback = false) {
+  inline auto get(const std::string& key, bool fallback = false) -> bool {
     if (_args.find(key) != _args.end()) {
       return _args.at(key);
-    } else {
-      return fallback;
     }
+    return fallback;
   }
 
   inline void parse(const int argc, const char* const* argv) {
@@ -23,3 +27,5 @@ namespace args {
     }
   }
 };  // namespace args
+
+#endif

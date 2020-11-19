@@ -30,7 +30,7 @@ namespace fs {
 
 
   namespace {
-    std::vector<std::string> split(const std::string& content, char sep, char comment) {
+    auto split(const std::string& content, char sep, char comment) -> std::vector<std::string> {
       std::vector<std::string> output;
       std::string::size_type ppos = 0;
       std::string::size_type pos  = 0;
@@ -49,7 +49,7 @@ namespace fs {
       return output;
     }
 
-    std::vector<std::string> split_fill(const std::string& s, char separator) {
+    auto split_fill(const std::string& s, char separator) -> std::vector<std::string> {
       std::vector<std::string> output;
       std::string::size_type pos = 0;
 
@@ -83,7 +83,7 @@ namespace fs {
     }
   }
 
-  std::string read_file(const std::string& path, bool should_exist = false) {
+  auto read_file(const std::string& path, bool should_exist = false) -> std::string {
     std::ifstream i(path);
     if (!i.is_open()) {
       i.close();
@@ -99,7 +99,7 @@ namespace fs {
     return content;
   }
 
-  std::vector<std::string> read_ignore(const std::string& path) {
+  auto read_ignore(const std::string& path) -> std::vector<std::string> {
     auto content = read_file(path, false);
 
     if (content.empty()) {

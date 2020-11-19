@@ -12,6 +12,6 @@ struct Dependency {
   std::vector<Dependency> dependencies{};
 };
 
-typedef std::vector<Dependency> Dependencies;
+using Dependencies = std::vector<Dependency>;
 
 #endif  //NPM_DEPENDENCY_H

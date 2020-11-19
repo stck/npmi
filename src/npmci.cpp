@@ -10,7 +10,7 @@
 #include "util/regex.h"
 #include "util/thread_pool.hpp"
 
-Dependencies process(Dependencies& v, bool include_dev = false, bool include_opt = false) noexcept {  // NOLINT(misc-no-recursion)
+auto process(Dependencies& v, bool include_dev = false, bool include_opt = false) noexcept -> Dependencies {  // NOLINT(misc-no-recursion)
   Dependencies dep;
 
   for (auto& i : v) {
@@ -45,12 +45,12 @@ void create_fs(const std::string& prefix, const regex::List& list, const tar::Co
   }
 }
 
-unsigned char* inflate(const http::Response& response) {
+auto inflate(const http::Response& response) -> unsigned char* {
   try {
-    unsigned int deflatedBufferSize = response.content.size();  //response.size;
-    unsigned int inflatedBufferSize = 20000000;
-    auto* deflatedData              = (const char*) response.content.data();
-    auto* inflatedData              = new unsigned char[inflatedBufferSize];
+    size_t deflatedBufferSize = response.content.size();  //response.size;
+    size_t inflatedBufferSize = 20000000;
+    auto* deflatedData        = static_cast<const char*>(response.content.data());
+    auto* inflatedData        = new unsigned char[inflatedBufferSize];
 
     unsigned int inflatedSize = Decompressor::Feed(deflatedData, deflatedBufferSize, inflatedData, inflatedBufferSize, false);
     if (inflatedSize == -1) {
@@ -81,7 +81,7 @@ auto download(const std::string& from) {
   return cli.Download(path);
 }
 
-int main(int argc, char* argv[]) {
+auto main(int argc, char* argv[]) -> int {
   args::parse(argc, argv);
 
   const bool include_dev = args::get("dev", false);

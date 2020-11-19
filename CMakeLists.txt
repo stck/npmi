@@ -38,7 +38,9 @@ else()
   target_link_libraries(npmci pthread pthread)
 endif()
 
-#if (test)
-  enable_testing()
-  add_subdirectory(./test)
-#endif()
+#include(CPack)
+#set(CPACK_GENERATOR "ZIP")
+
+enable_testing()
+add_subdirectory(./test)
+

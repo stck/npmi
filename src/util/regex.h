@@ -6,7 +6,7 @@
 #include <vector>
 
 namespace regex {
-  typedef std::vector<std::regex> List;
+  using List                                           = std::vector<std::regex>;
   constexpr static std::string_view special_characters = "()[]{}?*+-|^$\\.&~# \t\n\r\v\f";
   static std::map<int, std::string> special_characters_map;
 
@@ -18,7 +18,7 @@ namespace regex {
       }
     }
 
-    inline std::string translate(const std::string& pattern) {
+    inline auto translate(const std::string& pattern) -> std::string {
       std::string result_string = "^.*";
 
       if (special_characters_map.empty()) {
@@ -43,7 +43,7 @@ namespace regex {
   }  // namespace
 
 
-  inline List convert(const std::vector<std::string>& list) {
+  inline auto convert(const std::vector<std::string>& list) -> List {
     List _list;
     for (const auto& i : list) {
       std::string pattern = translate(i);
@@ -55,7 +55,7 @@ namespace regex {
     return _list;
   }
 
-  inline bool test(const std::string& source, const List& target) {
+  inline auto test(const std::string& source, const List& target) -> bool {
     bool matched = false;
     for (const auto& j : target) {
       if (std::regex_match(source, j)) {

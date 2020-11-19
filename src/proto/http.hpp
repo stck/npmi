@@ -26,7 +26,7 @@
 #define CONTENT_LENGTH "Content-Length"
 
 namespace http {
-  typedef std::map<std::string, std::string> Headers;
+  using Headers = std::map<std::string, std::string>;
   struct Response {
     Headers headers;
     std::vector<char> content;
@@ -44,11 +44,11 @@ namespace http {
   };
 
   namespace {
-    typedef long long unsigned int Socket;
-    typedef int ConnectionResult;
-    typedef sockaddr_in SocketAddress;
+    using Socket           = unsigned long long;
+    using ConnectionResult = int;
+    using SocketAddress    = sockaddr_in;
 
-    Socket createSocket() {
+    auto createSocket() -> Socket {
 #ifdef _WIN32
       // winsock must be initialized before use
       WSADATA wsaData;
@@ -76,14 +76,14 @@ namespace http {
 #endif
     }
 
-    SocketAddress detectHost(const std::string& host, const short port) {
+    auto detectHost(const std::string& host, const short port) -> SocketAddress {
       SocketAddress sai{};
       struct hostent* _host = ::gethostbyname(host.c_str());
 
       if (_host) {
         sai.sin_port        = htons(port);
         sai.sin_family      = AF_INET;
-        sai.sin_addr.s_addr = decltype(sai.sin_addr.s_addr)(*((unsigned long*) _host->h_addr));
+        sai.sin_addr.s_addr = decltype(sai.sin_addr.s_addr)(*(reinterpret_cast<unsigned long*>(_host->h_addr)));
       } else {
         throw ConnectionException{"Unable to resolve host"};
       }
@@ -92,7 +92,7 @@ namespace http {
 
     void connect(Socket socket, SocketAddress address, timeval* to) {
       int address_size     = sizeof(address);
-      auto* socket_address = (sockaddr*) (&address);
+      auto* socket_address = reinterpret_cast<sockaddr*>(&address);
       fd_set fdSet;
 
       ::connect(socket, socket_address, address_size);  // NOLINT(bugprone-unused-return-value)
@@ -107,20 +107,20 @@ namespace http {
 
       int so_error;
 #ifdef _WIN32
-      typedef int socklen_t;
-      typedef char* SockOpt_t;
+      using socklen_t = int;
+      using SockOpt_t = char*;
 #else
-      typedef void* SockOpt_t;
+      using SockOpt_t = void*;
 #endif
       socklen_t len = sizeof so_error;
-      ::getsockopt(socket, SOL_SOCKET, SO_ERROR, (SockOpt_t) &so_error, &len);
+      ::getsockopt(socket, SOL_SOCKET, SO_ERROR, reinterpret_cast<SockOpt_t>(&so_error), &len);
 
       if (so_error != 0) {
         throw ConnectionException("Timeout while acquiring connection to host");
       }
     }
 
-    int send_request(Socket socket, const std::string& _method, const std::string& _uri, const std::string& _host, Headers& _headers) {
+    auto send_request(Socket socket, const std::string& _method, const std::string& _uri, const std::string& _host, const Headers& _headers) -> int {
       std::string requestString;
       requestString.append(_method).append(" ").append(_uri).append(" ").append("HTTP/1.1").append(LE);
       requestString.append("Host:").append(" ").append(_host);
@@ -131,7 +131,7 @@ namespace http {
       return ::send(socket, requestString.c_str(), requestString.length(), 0);
     }
 
-    int receive_bytes(Socket socket, char* buf, int len, timeval* to) {
+    auto receive_bytes(Socket socket, char* buf, int len, timeval* to) -> int {
       fd_set fdSet;
       ConnectionResult connectionResult;
 
@@ -177,7 +177,7 @@ namespace http {
       return headers;
     }
 
-    Response parse_response(const std::vector<char>& buffer) {
+    auto parse_response(const std::vector<char>& buffer) -> Response {
       std::vector<char> headline_buffer;
       std::vector<char> content_buffer;
 
@@ -224,7 +224,7 @@ namespace http {
       .tv_usec = 0
     };
 
-    [[nodiscard]] bool isConnected() const noexcept {
+    [[nodiscard]] auto isConnected() const noexcept -> bool {
       return this->socket != INVALID_SOCKET;
     }  // NOLINT(hicpp-signed-bitwise)
 

@@ -1,7 +1,6 @@
 #include "../../src/util/regex.h"
 #include <cassert>
 #include <iostream>
-#include <tuple>
 
 namespace regex {
 
@@ -53,7 +52,7 @@ namespace regex {
 }  // namespace regex
 
 
-int main() {
+auto main() -> int {
   regex::test_translate();
   regex::test_convert();
   regex::test_test();

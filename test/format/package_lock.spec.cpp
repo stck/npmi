@@ -16,7 +16,7 @@ namespace packagelock {
     for (const auto& a : map) {
       auto [str, size] = a;  // NOLINT(performance-unnecessary-copy-initialization)
 
-      auto dep = V1Parser::parse(str);
+      auto dep = V1Parser::parse(const_cast<std::string&>(str));
       assert(dep.size() == size);
     }
   }
@@ -76,7 +76,7 @@ namespace packagelock {
 
 }  // namespace packagelock
 
-int main() {
+auto main() -> int {
   packagelock::test_V1Parser();
   return 0;
 };

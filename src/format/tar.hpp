@@ -8,7 +8,7 @@ namespace tar {
 #define ASCII_TO_NUMBER(num) ((num) -48)
 
   namespace {
-    std::string decodeString(const char* in, size_t len) {
+    auto decodeString(const char* in, size_t len) -> std::string {
       std::string a;
       for (int j = 0; j < len; j++) {
         if (in[j] == 0) {
@@ -20,17 +20,17 @@ namespace tar {
       return a;
     }
 
-    uint64_t decodeOctal(char* data, size_t size = 12) {
-      unsigned char* currentPtr  = (unsigned char*) data + size;
+    auto decodeOctal(char* data, size_t size = 12) -> uint64_t {
+      unsigned char* currentPtr  = reinterpret_cast<unsigned char*>(data) + size;
       uint64_t sum               = 0;
       uint64_t currentMultiplier = 1;
       unsigned char* checkPtr    = currentPtr;
-      for (; checkPtr >= (unsigned char*) data; checkPtr--) {
+      for (; checkPtr >= reinterpret_cast<unsigned char*>(data); checkPtr--) {
         if ((*checkPtr) == 0 || (*checkPtr) == ' ') {
           currentPtr = checkPtr - 1;
         }
       }
-      for (; currentPtr >= (unsigned char*) data; currentPtr--) {
+      for (; currentPtr >= reinterpret_cast<unsigned char*>(data); currentPtr--) {
         sum += ASCII_TO_NUMBER(*currentPtr) * currentMultiplier;
         currentMultiplier *= 8;
       }
@@ -38,9 +38,9 @@ namespace tar {
     }
   }  // namespace
 
-  typedef std::vector<std::pair<std::string, std::string>> Content;
+  using Content = std::vector<std::pair<std::string, std::string>>;
 
-  Content read(unsigned char* file, const std::string& prefix) {
+  auto read(unsigned char* file, const std::string& prefix) -> Content {
     Content tc;
 
     unsigned int i = 0;
