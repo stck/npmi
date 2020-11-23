@@ -6,7 +6,11 @@ on:
 
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [ macos-11.0, macos-10.15 ]
 
     steps:
       - uses: actions/checkout@v1
@@ -19,5 +23,5 @@ jobs:
       - name: upload artifact
         uses: actions/upload-artifact@v2
         with:
-          name: npmci.macos-latest
+          name: npmci.${{ matrix.os }}
           path: build/npmci
