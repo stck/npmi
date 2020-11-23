@@ -7,11 +7,14 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        tag: [ '3.10', '3.11', '3.12' ]
 
     steps:
       - uses: actions/checkout@v2
       - name: Build
-        run: docker build -t exporter -f ./docker/alpine.Dockerfile .
+        run: docker build --build-arg TAG=${{matrix.tag}} -t exporter -f ./docker/alpine.Dockerfile .
 
       - name: Export binary to local fs
         run: cd /tmp && docker save exporter -o export.tar && mkdir -p export/layer && tar -xf export.tar --directory export && cd export && egrep -iwo '[a-z0-9\/]+layer.tar' manifest.json | tail -1 | xargs -n1 tar --directory layer -xf
@@ -19,5 +22,5 @@ jobs:
       - name: upload artifact
         uses: actions/upload-artifact@v2
         with:
-          name: npmci.alpine-latest
+          name: npmci.alpine-${{matrix.tag}}
           path: /tmp/export/layer/usr/bin/npmci
