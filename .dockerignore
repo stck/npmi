@@ -1,10 +1,13 @@
 .git
+.idea
 build/*
 cmake-build-*
 docker
 .clang-format
+.clang-tidy
 .editorconfig
 .gitignore
 .github
 *.ps1
-*.i[m]l
+*.sh
+*.i{m,w}{l,s}
