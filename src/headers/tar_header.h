@@ -1,7 +1,3 @@
-//
-// Created by iokunev on 11.11.2020.
-//
-
 #ifndef NPM_TAR_HEADER_H
 #define NPM_TAR_HEADER_H
 
