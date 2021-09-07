@@ -22,7 +22,7 @@ There are no dependencies for this project
 
 ## Features
 * In-memory gzip extraction (no IOPS required)
-* Built-in and file filter
+* Built-in file filter
 * Concurrent install
 
 ## Current limitations
@@ -78,20 +78,25 @@ changelog*
 ## How to build
 |Requirement|Version|
 |---|---|
-|CMake|~3.10|
+|CMake|>=3.10|
 |gcc|~8.10|
 
 Use with Unix/MacOS:
 ```
-cmake --clean-first -G "Unix Makefiles" --build "./build"
+cmake  -G "Unix Makefiles" -S "." -B "./build"
 cmake --build ./build --target all
 ```
 
 Use with Windows:
 ```
-cmake --clean-first -G "MinGW Makefiles" --build "./build"
+cmake -G "MinGW Makefiles" -S "." -B "./build"
 cmake --build ./build --target all
 ```
 
 ## Tests
 Tests are written using **CTest**, that comes with cmake.
+
+To run tests:
+```
+ctest
+```
