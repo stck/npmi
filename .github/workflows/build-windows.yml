@@ -11,7 +11,7 @@ jobs:
     steps:
       - uses: actions/checkout@v1
       - name: clean
-        run: cmake --clean-first -S . -B .\build\ -DCMAKE_BUILD_TYPE=Release -G "MinGW Makefiles"
+        run: cmake -S . -B .\build\ -DCMAKE_BUILD_TYPE=Release -G "MinGW Makefiles"
       - name: build
         run: cmake --build ./build
       - name: test

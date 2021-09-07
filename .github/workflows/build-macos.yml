@@ -15,9 +15,9 @@ jobs:
     steps:
       - uses: actions/checkout@v1
       - name: clean
-        run: cd build && cmake --clean-first -DCMAKE_BUILD_TYPE=Release -G "Unix Makefiles" --build "../"
+        run: cmake -DCMAKE_BUILD_TYPE=Release -G "Unix Makefiles" -S "." -B "./build"
       - name: build
-        run: cd build && cmake --build . --target all -- -j 6;
+        run: cmake --build "./build/" --target all -- -j 6;
       - name: test
         run: cd build && ctest
       - name: upload artifact
