@@ -7,11 +7,14 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        tag: [ 'stream8', 'stream9' ]
 
     steps:
       - uses: actions/checkout@v2
       - name: Build
-        run: docker build -t exporter -f ./docker/centos.Dockerfile .
+        run: docker build --build-arg TAG=${{matrix.tag}} -t exporter -f ./docker/centos.Dockerfile .
 
       - name: Export binary to local fs
         run: cd /tmp && docker save exporter -o export.tar && mkdir -p export/layer && tar -xf export.tar --directory export && cd export && egrep -iwo '[a-z0-9\/]+layer.tar' manifest.json | tail -1 | xargs -n1 tar --directory layer -xf

@@ -1,13 +1,13 @@
-ARG TAG=8
+ARG TAG=stream9
 
-FROM centos:${TAG} as builder
+FROM quay.io/centos/centos:${TAG} as builder
 RUN yum update -y && \
     yum install -y cmake make gcc gcc-c++
 COPY "." "/tmp/"
-WORKDIR /tmp/build
-RUN cmake --clean-first -DCMAKE_BUILD_TYPE=Release -G "Unix Makefiles" --build "../" && \
-    cmake --build . --target all -- -j 6 && \
-    ctest;
+WORKDIR /tmp
+RUN cmake -S . -B ./build/ -DCMAKE_BUILD_TYPE=Release -G "Unix Makefiles" && \
+    cmake --build ./build/ && \
+    sh -c "cd ./build && ctest";
 
-FROM centos:${TAG} as container
+FROM quay.io/centos/centos:${TAG} as container
 COPY --from=builder "/tmp/build/npmci" "/usr/bin/"
