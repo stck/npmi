@@ -9,9 +9,8 @@ struct Dependency {
   std::string resolved;
   bool dev{true};
   bool optional{true};
-  std::vector<Dependency> dependencies{};
 };
 
 using Dependencies = std::vector<Dependency>;
 
-#endif  //NPM_DEPENDENCY_H
+#endif  // NPM_DEPENDENCY_H

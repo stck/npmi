@@ -10,27 +10,6 @@
 #include "util/regex.h"
 #include "util/thread_pool.hpp"
 
-auto process(Dependencies& v, bool include_dev = false, bool include_opt = false) noexcept -> Dependencies {  // NOLINT(misc-no-recursion)
-  Dependencies dep;
-
-  for (auto& i : v) {
-    if (i.dev && !include_dev) continue;
-    if (i.optional && !include_opt) continue;
-
-    Dependencies subDep = i.dependencies;
-
-    i.dependencies = Dependencies{};
-
-    dep.emplace_back(i);
-
-    if (!subDep.empty()) {
-      auto b = process(subDep);
-      dep.insert(dep.end(), b.begin(), b.end());
-    }
-  }
-  return dep;
-}
-
 void create_fs(const std::string& prefix, const regex::List& list, const tar::Content& files) noexcept {
   for (const auto& i : files) {
     if (!regex::test(i.first, list)) {
@@ -45,9 +24,9 @@ void create_fs(const std::string& prefix, const regex::List& list, const tar::Co
   }
 }
 
-auto inflate(const http::Response& response) -> unsigned char* {
+auto inflate(const http::response& response) -> unsigned char* {
   try {
-    size_t deflatedBufferSize = response.content.size();  //response.size;
+    size_t deflatedBufferSize = response.content.size();  // response.size;
     size_t inflatedBufferSize = 20000000;
     auto* deflatedData        = static_cast<const char*>(response.content.data());
     auto* inflatedData        = new unsigned char[inflatedBufferSize];
@@ -77,8 +56,8 @@ auto download(const std::string& from) {
   std::string host = a.substr(0, a.find_first_of('/'));
   std::string path = a.substr(a.find_first_of('/'));
 
-  http::Client cli{host};
-  return cli.Download(path);
+  http::client cli{host};
+  return cli.download(path);
 }
 
 auto main(int argc, char* argv[]) -> int {
@@ -87,7 +66,7 @@ auto main(int argc, char* argv[]) -> int {
   const bool include_dev = args::get("dev", false);
   const bool include_opt = args::get("optional", false);
   const bool verbose     = args::get("verbose", false);
-  const std::string file = "package-lock.json";  // todo: choose file as argument
+  const std::string file = "package-lock.json";
 
   std::vector<std::string> template_list = fs::read_ignore(".pkgignore");
   regex::List list                       = regex::convert(template_list);
@@ -102,8 +81,12 @@ auto main(int argc, char* argv[]) -> int {
       return 1;
     }
 
-    auto dependencies        = packagelock::V1Parser::parse(jsonStr);
-    auto cleanedDependencies = process(dependencies, include_dev, include_opt);
+    Dependencies cleanedDependencies{};
+    auto dependencies = package_lock::parse(jsonStr);
+    std::copy_if(dependencies.begin(), dependencies.end(), std::back_inserter(cleanedDependencies), [include_dev, include_opt](Dependency i) {
+      return (include_dev && i.dev) || (include_opt && i.optional) || (!include_opt && !include_dev);
+    });
+
     if (cleanedDependencies.empty()) {
       std::cerr << "No entries to install" << std::endl;
       return 1;

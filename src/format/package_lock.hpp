@@ -2,11 +2,9 @@
 #define NPM_PACKAGE_LOCK_HPP
 
 #include "../headers/dependency.h"
-#include <algorithm>
 #include <string>
-#include <vector>
 
-namespace packagelock {
+namespace package_lock {
 #define OS '{'
 #define OE '}'
 #define OKP ':'
@@ -14,43 +12,62 @@ namespace packagelock {
 #define OD ','
 #define DEP "dependencies"
 #define NM "/node_modules/"
+#define LFV "lockfileVersion"
+#define PACK "packages"
 
-  class V1Parser {
-  private:
-    static auto substring(const std::string& source, int from, int to) -> std::string {
-      return substring(source, from, to, false);
+  namespace {
+    inline const std::vector<char> blacklist{'\t', '\n', '\r', ' '};
+
+    class UnsupportedLockfileVersionException : public std::runtime_error {
+    public:
+      using std::runtime_error::runtime_error;
+    };
+
+    class LockfileVersionMissingException : public std::runtime_error {
+    public:
+      using std::runtime_error::runtime_error;
+    };
+
+    /**
+     * Find FIRST block START index by given open/close chars
+     * @param source Content to search for
+     * @param fromIndex Start searching by given index
+     * @param pairOpen Char that represent block open
+     * @param pairClose Char that represents block close
+     * @return index of block start in source
+     */
+    auto findStart(const std::string& source, const size_t fromIndex, const char pairOpen, [[maybe_unused]] const char pairClose) -> size_t {
+      return source.find_first_of(pairOpen, fromIndex);
     }
 
-    static auto substring(const std::string& source, int from, int to, bool cutLast) -> std::string {
-      if (to == source.length() - 1) return source.substr(from);
-      std::string result = source.substr(from, to - from + (cutLast ? 0 : 1));
-      return result;
-    }
-
-    static auto findPairClose(const std::string& source, const int fromIndex, const char pairOpen, const char pairClose) -> int {
-      int level    = 1;
-      int iterDone = 0;
-      int lastPos  = fromIndex;
+    /**
+     * Find FIRST block END index by given open/close chars
+     * @param source Content to search for
+     * @param fromIndex Start searching by given index
+     * @param pairOpen Char that represent block open
+     * @param pairClose Char that represents block close
+     * @return index of block end in source
+     */
+    auto findClose(const std::string& source, const size_t fromIndex, const char pairOpen, const char pairClose) -> size_t {
+      int level      = 1;
+      size_t lastPos = fromIndex;
       while (level > 0) {
-        iterDone       = iterDone + 1;
-        int nextPos    = lastPos + 1;
-        int firstStart = source.find_first_of(pairOpen, nextPos);
-        int firstEnd   = source.find_first_of(pairClose, nextPos);
+        size_t nextPos    = lastPos + 1;
+        size_t firstStart = source.find_first_of(pairOpen, nextPos);
+        size_t firstEnd   = source.find_first_of(pairClose, nextPos);
 
         if (firstStart != std::string::npos && firstEnd != std::string::npos) {
           if (firstStart < firstEnd) {
-            level   = level + 1;
+            level += 1;
             lastPos = firstStart;
           } else {
-            level   = level - 1;
+            level -= 1;
             lastPos = firstEnd;
           }
         } else {
-          if (firstEnd == std::string::npos) {
-            break;  //WTF?? wrong syntax
-          } else {
+          if (firstEnd != std::string::npos) {
             lastPos = firstEnd;
-            level   = level - 1;
+            level -= 1;
           }
         }
       }
@@ -58,94 +75,145 @@ namespace packagelock {
       return lastPos;
     }
 
-  protected:
-    static auto parseValue(const std::string& source, const std::string& key, const std::string& fallback) -> std::string {
-      int firstOS  = source.find_first_of(OS, 1);
-      int keyStart = source.find(key);
-      if (keyStart != std::string::npos && (keyStart < firstOS || firstOS == std::string::npos)) {
-        std::string ignore;
-        ignore += OK;
-        ignore += OD;
-        ignore += OE;
+    /**
+     * Substring from/to
+     * @param source Content to perform substring
+     * @param from Index of substring beginning
+     * @param to Index of substring ending
+     * @param cutLast Should the last char be omitted
+     * @return Substring by given range
+     */
+    auto substring(const std::string& source, size_t from, size_t to, bool cutLast) -> std::string {
+      if (to == source.length() - 1) return source.substr(from);
+      std::string result = source.substr(from, to - from + (cutLast ? 0 : 1));
+      return result;
+    }
+  }  // namespace
 
-        int valueStart = source.find_first_not_of(OK, source.find_first_of(OKP, keyStart) + 1);
-        int valueEnd   = int(source.find_first_of(ignore, valueStart)) - 1;
+  auto findStart(const std::string& source, const size_t fromIndex) -> size_t {
+    return findStart(source, fromIndex, OS, OE);
+  }
 
-        std::string a = substring(source, valueStart, valueEnd, false);
-        return a;
-      }
+  auto findClose(const std::string& source, const size_t fromIndex) -> size_t {
+    return findClose(source, fromIndex, OS, OE);
+  }
 
-      return fallback;
+  auto substring(const std::string& source, size_t from, size_t to) -> std::string {
+    return substring(source, from, to, false);
+  }
+
+  auto getClosestBlock(const std::string& content, const size_t pos) -> std::string {
+    size_t start(findStart(content, pos));
+    size_t end(findClose(content, start));
+    std::string block(substring(content, start + 1, end, true));
+
+    return block;
+  }
+
+  auto parseKey(const std::string& source) -> std::string {
+    std::string ignore{OK, OD};
+
+    size_t keyStart = source.find_first_not_of(ignore);
+    size_t keyEnd   = source.find_first_of(OK, keyStart);
+
+    return substring(source, keyStart, keyEnd, true);
+  }
+
+  auto parseValue(const std::string& source, const std::string& key, const std::string& fallback) -> std::string {
+    size_t firstOS  = findStart(source, 1);
+    size_t keyStart = source.find(key);
+    if (keyStart != std::string::npos && (keyStart < firstOS || firstOS == std::string::npos)) {
+      std::string ignore{OK, OD, OE};
+      size_t valueStart = source.find_first_not_of(OK, source.find_first_of(OKP, keyStart) + 1);
+      size_t valueEnd   = static_cast<size_t>(source.find_first_of(ignore, valueStart)) - 1;
+      return substring(source, valueStart, valueEnd, false);
     }
 
-    static auto parseDependency(const std::string& root, const std::string& dep) -> Dependency {  // NOLINT(misc-no-recursion)
-      std::string ignore;
-      ignore += OK;
-      ignore += OD;
+    return fallback;
+  }
 
-      int keyStart      = dep.find_first_not_of(ignore);
-      int keyEnd        = dep.find_first_of(OK, keyStart);
-      std::string key   = substring(dep, keyStart, keyEnd, true);
-      std::string value = dep.substr(dep.find_first_of(OS, keyEnd));
+  auto parseDependency(const std::string& dependency, const std::string& overridePath) -> Dependency {
+    std::string key{parseKey(dependency)};
+    std::string value{getClosestBlock(dependency, 0)};
 
-      std::string newRoot = root + key;
-      return Dependency{
-          .path         = newRoot,
-          .resolved     = parseValue(value, "resolved", ""),
-          .dev          = parseValue(value, "dev", "false") == "true",
-          .optional     = parseValue(value, "optional", "false") == "true",
-          .dependencies = parseDependencies(newRoot + NM, value),
-      };
+    return Dependency{
+        .path     = overridePath.empty() ? key : overridePath + key,
+        .resolved = parseValue(value, "resolved", ""),
+        .dev      = parseValue(value, "dev", "false") == "true",
+        .optional = parseValue(value, "optional", "false") == "true",
+    };
+  }
+
+  auto parseDependencies(const std::string& source, const std::string& root) -> Dependencies {  // NOLINT(misc-no-recursion)
+    size_t depPos = source.find(root.empty() ? PACK : DEP, 0);
+
+    if (depPos == std::string::npos) {
+      return {};
     }
 
-    static auto parseDependencies(const std::string& root, const std::string& i) -> Dependencies {  // NOLINT(misc-no-recursion)
-      Dependencies dependencies;
-      int depPos = i.find(DEP, 0);
+    size_t start      = findStart(source, depPos);
+    size_t end        = findClose(source, start);
+    std::string pairs = substring(source, start + 1, end, true);
 
-      if (depPos == std::string::npos) {
-        return dependencies;
+    Dependencies dependencies;
+    size_t lastPos = 0;
+    while (findStart(pairs, lastPos) != std::string::npos) {
+      size_t firstOS = findStart(pairs, lastPos);
+      size_t lastOS  = findClose(pairs, firstOS);
+
+      std::string pair = substring(pairs, lastPos, lastOS + 1, true);
+      lastPos += pair.length();
+
+      if (pair[0] == OK && pair[1] == OK) continue;
+      Dependency dep{parseDependency(pair, root)};
+      dependencies.emplace_back(dep);
+
+      if (!root.empty()) {
+        std::string appendPath = root.empty() ? root : dep.path + NM;
+        Dependencies childDep  = parseDependencies(pair, appendPath);
+
+        if (!childDep.empty()) {
+          dependencies.insert(dependencies.end(), childDep.begin(), childDep.end());
+        }
       }
-
-      int start = i.find_first_of(OS, depPos);
-
-      std::string pairs = substring(i, start + 1, findPairClose(i, start, OS, OE), true);
-
-      int lastPos = 0;
-      while (pairs.find_first_of(OS, lastPos) != std::string::npos) {
-        int firstOS = pairs.find_first_of(OS, lastPos);
-        int lastOS  = findPairClose(pairs, firstOS, OS, OE);
-
-        std::string pair = substring(pairs, lastPos, lastOS + 1, true);
-        lastPos += pair.length();
-        dependencies.emplace_back(parseDependency(root, pair));
-      }
-
-      return dependencies;
     }
 
-  public:
-    static auto parse(std::string& i) -> Dependencies {
-      std::vector<char> delChr{'\t', '\n', '\r', ' '};
-      int start(i.find_first_of(OS));
-      int end(i.find_last_of(OE));
+    return dependencies;
+  }
 
-      for (auto& del : delChr) {
-        i.erase(std::remove(i.begin(), i.end(), del), i.end());
-      }
-      if (i.empty()) {
-        return Dependencies{};
-      }
-
-      std::string rootObject = substring(i, start, end);
-      return parseDependencies(NM, rootObject);
+  auto parse(std::string& content) -> Dependencies {
+    for (auto& blChar : blacklist) {
+      content.erase(std::remove(content.begin(), content.end(), blChar), content.end());
     }
 
-#ifdef UNITTEST
-    friend void test_V1Parser_Substring();
-    friend void test_V1Parser_FindPairClose();
-    friend void test_V1Parser_ParseValue();
-#endif
+    if (content.empty()) {
+      return Dependencies{};
+    }
+
+    std::string value{parseValue(content, LFV, "-1")};
+    int version = std::stoi(value);
+
+    switch (version) {
+      case -1:
+        throw LockfileVersionMissingException{"Lock file version wasn't found in package-lock.json"};
+      case 1:
+      case 2:
+        return parseDependencies(getClosestBlock(content, 0), version == 1 ? NM : "");
+      default:
+        throw UnsupportedLockfileVersionException{"Lockfile version is not supported"};
+    }
   };
-}  // namespace packagelock
 
-#endif  //NPM_PACKAGE_LOCK_HPP
+
+#undef OS
+#undef OE
+#undef OKP
+#undef OK
+#undef OD
+#undef DEP
+#undef NM
+#undef LFV
+#undef PACK
+}  // namespace package_lock
+
+#endif  // NPM_PACKAGE_LOCK_HPP

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 if (CMAKE_BINARY_DIR STREQUAL CMAKE_SOURCE_DIR)
-  message(FATAL_ERROR "Building in-source is not supported! Create a build dir and remove ${CMAKE_SOURCE_DIR}/CMakeCache.txt")
+    message(FATAL_ERROR "Building in-source is not supported! Create a build dir and remove ${CMAKE_SOURCE_DIR}/CMakeCache.txt")
 endif ()
 
 option(test "Build all tests." ON)
@@ -13,6 +13,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(LIB
         src/headers/dependency.h
         src/format/package_lock.hpp
+        src/proto/tcp.hpp
         src/proto/http.hpp
         src/util/fs.hpp
         src/util/args.hpp
@@ -27,16 +28,28 @@ set(GZIP_LIB
         src/format/gzip/bit_reader.cc
         src/format/gzip/decompressor.h
         src/format/gzip/decompressor.cc
-)
+
+
+        src/format/inflate/binarytreenode.h
+        src/format/inflate/huffmantree.cpp
+        src/format/inflate/huffmantree.h
+        src/format/inflate/ifbstream.cpp
+        src/format/inflate/ifbstream.h
+        src/format/inflate/inflate.cpp
+        src/format/inflate/inflate.h
+        src/format/inflate/ringbuffer.cpp
+        src/format/inflate/ringbuffer.h
+        src/format/inflate/teestream.h
+        )
 
 set(INCLUDES ${LIB} ${GZIP_LIB} ${TP_LIB})
 
 add_executable(npmci src/npmci.cpp ${INCLUDES})
-if(WIN32)
-  target_link_libraries(npmci wsock32 ws2_32)
-else()
-  target_link_libraries(npmci pthread pthread)
-endif()
+if (WIN32)
+    target_link_libraries(npmci wsock32 ws2_32)
+else ()
+    target_link_libraries(npmci pthread pthread)
+endif ()
 
 #include(CPack)
 #set(CPACK_GENERATOR "ZIP")

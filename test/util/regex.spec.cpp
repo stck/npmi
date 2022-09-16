@@ -1,6 +1,5 @@
 #include "../../src/util/regex.h"
 #include <cassert>
-#include <iostream>
 
 namespace regex {
 
@@ -8,7 +7,8 @@ namespace regex {
     auto map = {
         std::make_tuple("license", "^.*license$"),
         std::make_tuple("license*", "^.*license.*$"),
-        std::make_tuple("lice?se*", "^.*lice.?se.*$")};
+        std::make_tuple("lice?se*", "^.*lice.?se.*$"),
+        std::make_tuple("lice?se~", "^.*lice.?se\\~$")};
 
     for (const auto& a : map) {
       auto [source, result] = a;  // NOLINT(performance-unnecessary-copy-initialization)
