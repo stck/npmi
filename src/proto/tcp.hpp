@@ -1,44 +1,64 @@
+#include <array>
 #include <string>
+#include <vector>
 
 #ifdef _WIN32
 #  include <winsock2.h>
+#  include <ws2tcpip.h>
 #  pragma comment(lib, "ws2_32")
 #else
 #  include <arpa/inet.h>
 #  include <fcntl.h>
 #  include <netdb.h>
-#  include <sys/ioctl.h>
-#  include <sys/time.h>
+#  include <poll.h>
 #  include <unistd.h>
-#  include <vector>
 #  define INVALID_SOCKET (-1)
 #  ifndef SOCK_NONBLOCK
 #    define SOCK_NONBLOCK O_NONBLOCK
 #  endif
 #endif
 
-#ifndef BUF_SIZE
-#  define BUF_SIZE 102
+#ifndef TIMEOUT
+#  define TIMEOUT 1000u
 #endif
-#define LE "\r\n"
+
+#ifndef BUF_SIZE
+#  define BUF_SIZE size_t(64u)
+#endif
 
 namespace tcp {
-  using Socket           = uint64_t;
-  using ConnectionResult = int;
-  using SocketAddress    = sockaddr_in;
-
-  class ConnectionException : public std::runtime_error {
-  public:
-    using std::runtime_error::runtime_error;
-  };
-
-  class TransferException : public std::runtime_error {
-  public:
-    using std::runtime_error::runtime_error;
-  };
+  using socket_t      = int;  // uint64_t
+  using socket_addr_t = sockaddr_in;
+  using sbuffer_t     = std::array<char, BUF_SIZE>;
+  using buffer_t      = std::vector<char>;
 
   namespace {
-    auto create_socket() -> Socket {
+    class ConnectionException : public std::runtime_error {
+    public:
+      using std::runtime_error::runtime_error;
+    };
+
+    class TransferException : public std::runtime_error {
+    public:
+      using std::runtime_error::runtime_error;
+    };
+
+    template<typename T>
+    inline auto handle_interruption(T fn) -> ssize_t {
+      ssize_t res;
+      while (true) {
+        res = fn();
+
+        if (res < 0 && errno == EINTR) {
+          continue;
+        } else {
+          break;
+        }
+      }
+      return res;
+    }
+
+    auto create_socket() -> socket_t {
 #ifdef _WIN32
       // winsock must be initialized before use
       WSADATA wsaData;
@@ -46,7 +66,7 @@ namespace tcp {
         WSACleanup();
       }
 #endif
-      Socket sock = ::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+      socket_t sock = ::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 #ifdef _WIN32  // Non-blocking flags
       auto on = 1UL;
       ::ioctlsocket(sock, FIONBIO, &on);  // NOLINT(hicpp-signed-bitwise)
@@ -57,94 +77,131 @@ namespace tcp {
       return sock;
     }
 
-    void close_socket(Socket _socket) {
+    void close_socket(const socket_t& sock) {
 #ifdef _WIN32
-      ::closesocket(_socket);
+      ::closesocket(sock);
 #else
-      close(_socket);
+      close(sock);
 #endif
     }
 
-    auto detect_host(const std::string& host, const u_int16_t port) -> SocketAddress {
-      SocketAddress sai{};
+    auto detect_host(const std::string& host, const uint16_t& port) -> socket_addr_t {
+      socket_addr_t   sai{};
       struct hostent* _host = ::gethostbyname(host.c_str());
 
-      if (_host) {
+      if (_host && _host->h_addrtype == AF_INET) {
         sai.sin_port        = htons(port);
         sai.sin_family      = AF_INET;
-        sai.sin_addr.s_addr = static_cast<decltype(sai.sin_addr.s_addr)>(*(reinterpret_cast<unsigned long*>(_host->h_addr)));
+        sai.sin_addr.s_addr = *reinterpret_cast<uint32_t*>(_host->h_addr);
       } else {
         throw ConnectionException{"Unable to resolve host"};
       }
       return sai;
     }
 
-    void connect(Socket socket, SocketAddress address, timeval* to) {
-      int address_size     = sizeof(address);
+    auto poll_socket(const socket_t& sock, const int16_t events = POLLIN | POLLOUT | POLLERR) -> void {
+      int pollStatus;
+
+      struct pollfd pfd {
+        .fd     = sock,
+        .events = events,
+      };
+
+      do {
+        pollStatus = ::poll(&pfd, 1, TIMEOUT);
+      } while (pollStatus == 0);
+
+      if (pollStatus > 0) {
+        return;
+      } else {
+        throw ConnectionException{"Host connection timed-out"};
+      }
+    }
+
+    auto connect(const socket_t& sock, socket_addr_t address) -> void {
+      int   address_size   = sizeof(address);
       auto* socket_address = reinterpret_cast<sockaddr*>(&address);
-      fd_set fdSet;
 
-      ::connect(socket, socket_address, address_size);  // NOLINT(bugprone-unused-return-value)
-
-      FD_ZERO(&fdSet);
-      FD_SET(socket, &fdSet);
-
-      ConnectionResult cr = ::select(socket + 1UL, nullptr, &fdSet, nullptr, to);
-      if (cr < 1) {
+      ::connect(sock, socket_address, address_size);  // NOLINT(bugprone-unused-return-value)
+      try {
+        poll_socket(sock);
+      } catch (std::exception& e) {
         throw ConnectionException{"Unable to connect to host"};
       }
-
-      int so_error;
-#ifdef _WIN32
-      using socklen_t = int;
-      using SockOpt_t = char*;
-#else
-      using SockOpt_t = void*;
-#endif
-      socklen_t len = sizeof so_error;
-      ::getsockopt(socket, SOL_SOCKET, SO_ERROR, reinterpret_cast<SockOpt_t>(&so_error), &len);
-
-      if (so_error != 0) {
-        throw ConnectionException("Timeout while acquiring connection to host");
-      }
     }
 
 
-    auto receive_bytes(Socket socket, char* buf, int len, timeval* to) -> int {
-      fd_set fdSet;
-      ConnectionResult connectionResult;
-
-      FD_ZERO(&fdSet);
-      FD_SET(socket, &fdSet);
-
-      connectionResult = ::select(socket + 1UL, &fdSet, nullptr, nullptr, to);
-      if (connectionResult == INVALID_SOCKET) return -2;  // timeout! NOLINT(hicpp-signed-bitwise)
-#ifdef _WIN32
-      if (connectionResult == SOCKET_ERROR) return -1;  // error
-#else
-      if (connectionResult == SO_ERROR) return -1;  // error
-#endif
-      return ::recv(socket, buf, len, 0);
+    auto receive_socket(const socket_t& sock, sbuffer_t* buf) -> ssize_t {
+      return handle_interruption([&]() -> ssize_t {
+        return ::recv(sock, buf, buf->size(), 0);
+      });
     }
 
-    auto receive_response(Socket socket, timeval* to) {
-      std::vector<char> buf;
-
-      while (true) {
-        char buffer[BUF_SIZE]{};
-        auto receivedBytes = receive_bytes(socket, buffer, BUF_SIZE, to);
-        if (receivedBytes > 0) {
-          std::copy(&buffer[0], &buffer[receivedBytes], std::back_inserter(buf));
-        } else if (receivedBytes == 0) {
-          break;
-        } else {
-          throw TransferException{"Unable to receive response bytes"};
-        }
-      }
-
-      return buf;
+    auto send_socket(const socket_t& sock, const sbuffer_t* buf) -> ssize_t {
+      return handle_interruption([&]() -> ssize_t {
+        return ::send(sock, buf, buf->size(), 0);
+      });
     }
   }  // namespace
 
+  auto socket_to_host(const std::string& host, const uint16_t& port) -> socket_t {
+    auto sock = create_socket();
+    auto addr = detect_host(host, port);
 
+    connect(sock, addr);
+
+    return sock;
+  }
+
+  auto is_socket_valid(const socket_t& sock) noexcept -> bool {
+    if (sock == INVALID_SOCKET) return false;
+
+    try {
+      poll_socket(sock);
+
+      return true;
+    } catch (std::exception&) {
+      return false;
+    }
+  }
+
+  auto receive_bytes(const socket_t& sock) -> buffer_t {
+    buffer_t buf;
+    poll_socket(sock, POLLIN | POLLERR);
+
+    while (true) {
+      sbuffer_t buffer{};
+
+      auto data_bytes = receive_socket(sock, &buffer);
+      if (data_bytes > 0) {
+        std::copy(&buffer[0], &buffer[data_bytes], std::back_inserter(buf));
+      } else if (data_bytes == 0) {
+        break;
+      } else {
+        throw TransferException{"Unable to receive response bytes"};
+      }
+    }
+
+    return buf;
+  }
+
+  auto send_bytes(const socket_t& sock, const buffer_t& buffer) -> void {
+    poll_socket(sock, POLLOUT | POLLERR);
+    ssize_t offset = 0;
+
+    do {
+      sbuffer_t partial_buffer{};
+
+      std::copy_n(buffer.begin() + offset, partial_buffer.size(), partial_buffer.begin());
+      auto data_bytes = send_socket(sock, &partial_buffer);
+      if (data_bytes > 0) {
+        offset += data_bytes;
+        continue;
+      } else if (data_bytes == 0) {
+        break;
+      } else {
+        throw TransferException{"Unable to write to socket"};
+      }
+    } while (offset <= buffer.size());
+  }
 }  // namespace tcp
