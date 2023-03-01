@@ -76,7 +76,7 @@ changelog*
 ```
 
 ## How to build
-|Requirement|Version|
+|Requirement|TLSVersion|
 |---|---|
 |CMake|>=3.10|
 |gcc|~8.10|

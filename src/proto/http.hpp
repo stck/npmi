@@ -1,3 +1,6 @@
+#ifndef NPM_HTTP_HPP
+#define NPM_HTTP_HPP
+
 #include "tcp.hpp"
 #include <format>
 #include <map>
@@ -53,10 +56,9 @@ namespace http {
       std::vector<char> headline_buffer;
       std::vector<char> content_buffer;
 
-      int  i     = 3;
+      int i = 3;
       for (; i < buffer.size(); i += 1) {
-        if (buffer[i - 3] == 13 && buffer[i - 1] == 13
-            && buffer[i - 2] == 10 && buffer[i] == 10) {
+        if (buffer[i - 3] == 13 && buffer[i - 1] == 13 && buffer[i - 2] == 10 && buffer[i] == 10) {
           break;
         }
       }
@@ -78,25 +80,23 @@ namespace http {
     }
   }  // namespace
 
-
-  auto download(const std::string& uri) {
+  auto download(const std::string& uri, const int16_t port) {
     const std::string host_path = uri.substr(uri.find("://") + 3);
     const std::string host      = host_path.substr(0, host_path.find_first_of('/'));
     const std::string path      = host_path.substr(host_path.find_first_of('/'));
-    const int16_t     port      = 80;
     headers           _headers{
-                  {"Connection", "close"},
-                  {"Accept", "*/*"},
-                  {"User-Agent", "npmci/1.0"}};
+        {"Connection", "close"},
+        {"Accept", "*/*"},
+        {"User-Agent", "npmci/1.0"}};
 
     tcp::socket_t sock;
     try {
       sock             = tcp::socket_to_host(host, port);
       std::string body = construct_body("GET", path, host, _headers);
 
-      tcp::buffer_t vect(body.c_str(), body.c_str() + body.size());
-      vect.push_back('\0');
-      tcp::send_bytes(sock, vect);
+      tcp::buffer_t buffer(body.c_str(), body.c_str() + body.size());
+      buffer.push_back('\0');
+      tcp::send_bytes(sock, buffer);
 
       // get response
       tcp::buffer_t buf = tcp::receive_bytes(sock);
@@ -109,6 +109,10 @@ namespace http {
       tcp::close_socket(sock);
       throw HTTPException{"Could not download file at " + uri};
     }
+  }
+
+  auto download(const std::string& uri) {
+    return download(uri, 80);
   }
 
   //  class client {
@@ -178,3 +182,4 @@ namespace http {
 #ifndef _WIN32
 #  undef INVALID_SOCKET
 #endif
+#endif  // NPM_HTTP_HPP

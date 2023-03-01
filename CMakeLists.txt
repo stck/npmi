@@ -13,12 +13,21 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(LIB
         src/headers/dependency.h
         src/format/package_lock.hpp
-        src/proto/tcp.hpp
-        src/proto/http.hpp
         src/util/fs.hpp
         src/util/args.hpp
         src/format/tar.hpp
         src/headers/tar_header.h src/util/regex.h)
+
+SET(CRYPTO_LIB
+        src/crypto/aes.hpp
+        src/crypto/rsa.hpp
+        src/crypto/sha256.hpp)
+
+set(HTTP_LIB
+        src/proto/tcp.hpp
+        src/proto/tls.hpp
+        src/proto/http.hpp
+        src/proto/https.hpp)
 
 set(TP_LIB src/util/thread_pool.hpp)
 set(GZIP_LIB
@@ -42,7 +51,7 @@ set(GZIP_LIB
         src/format/inflate/teestream.h
         )
 
-set(INCLUDES ${LIB} ${GZIP_LIB} ${TP_LIB})
+set(INCLUDES ${LIB} ${CRYPTO_LIB} ${HTTP_LIB} ${GZIP_LIB} ${TP_LIB})
 
 add_executable(npmci src/npmci.cpp ${INCLUDES})
 if (WIN32)

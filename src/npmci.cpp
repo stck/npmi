@@ -5,6 +5,7 @@
 #include "format/package_lock.hpp"
 #include "format/tar.hpp"
 #include "proto/http.hpp"
+#include "proto/https.hpp"
 #include "util/args.hpp"
 #include "util/fs.hpp"
 #include "util/regex.h"
@@ -61,8 +62,8 @@
 // }
 
 auto main(int argc, char* argv[]) -> int {
-  auto a = http::download("http://keycloak/123");
-  std::string noop{};
+  https::download("https://registry.npmjs.org/lodash/-/lodash-4.17.15.tgz");
+//  std::string noop{};
   //  args::parse(argc, argv);
   //
   //  const bool include_dev = args::get("dev", false);

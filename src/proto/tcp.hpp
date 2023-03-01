@@ -1,3 +1,6 @@
+#ifndef NPM_TCP_HPP
+#define NPM_TCP_HPP
+
 #include <array>
 #include <string>
 #include <vector>
@@ -29,8 +32,8 @@
 namespace tcp {
   using socket_t      = int;  // uint64_t
   using socket_addr_t = sockaddr_in;
-  using sbuffer_t     = std::array<char, BUF_SIZE>;
-  using buffer_t      = std::vector<char>;
+  using sbuffer_t     = std::array<unsigned char, BUF_SIZE>;
+  using buffer_t      = std::vector<unsigned char>;
 
   namespace {
     class ConnectionException : public std::runtime_error {
@@ -72,7 +75,7 @@ namespace tcp {
       ::ioctlsocket(sock, FIONBIO, &on);  // NOLINT(hicpp-signed-bitwise)
 #else
       int flags = ::fcntl(sock, F_GETFL, 0);
-      ::fcntl(sock, F_SETFL, flags | SOCK_NONBLOCK);
+      ::fcntl(sock, F_SETFL, flags | SOCK_NONBLOCK | SO_REUSEADDR | SO_REUSEPORT);
 #endif
       return sock;
     }
@@ -142,6 +145,12 @@ namespace tcp {
         return ::send(sock, buf, buf->size(), 0);
       });
     }
+
+    auto send_socket(const socket_t& sock, const sbuffer_t* buf, const ssize_t len) -> ssize_t {
+      return handle_interruption([&]() -> ssize_t {
+        return ::send(sock, buf, len, 0);
+      });
+    }
   }  // namespace
 
   auto socket_to_host(const std::string& host, const uint16_t& port) -> socket_t {
@@ -153,7 +162,7 @@ namespace tcp {
     return sock;
   }
 
-  auto is_socket_valid(const socket_t& sock) noexcept -> bool {
+  [[maybe_unused]] auto is_socket_valid(const socket_t& sock) noexcept -> bool {
     if (sock == INVALID_SOCKET) return false;
 
     try {
@@ -178,6 +187,10 @@ namespace tcp {
       } else if (data_bytes == 0) {
         break;
       } else {
+        if (errno == 0x36 || errno == 0x23) {  // EINPROGRESS if recv is waiting for next step
+          break;
+        }
+
         throw TransferException{"Unable to receive response bytes"};
       }
     }
@@ -188,12 +201,18 @@ namespace tcp {
   auto send_bytes(const socket_t& sock, const buffer_t& buffer) -> void {
     poll_socket(sock, POLLOUT | POLLERR);
     ssize_t offset = 0;
+    ssize_t rest;
 
     do {
       sbuffer_t partial_buffer{};
-
+      ssize_t   data_bytes;
       std::copy_n(buffer.begin() + offset, partial_buffer.size(), partial_buffer.begin());
-      auto data_bytes = send_socket(sock, &partial_buffer);
+      if ((rest = buffer.size() - offset) < partial_buffer.size()) {
+        data_bytes = send_socket(sock, &partial_buffer, rest);
+      } else {
+        data_bytes = send_socket(sock, &partial_buffer);
+      }
+
       if (data_bytes > 0) {
         offset += data_bytes;
         continue;
@@ -205,3 +224,4 @@ namespace tcp {
     } while (offset <= buffer.size());
   }
 }  // namespace tcp
+#endif  // NPM_TCP_HPP

@@ -1,9 +1,13 @@
 set(SOURCES
+        crypto/aes.spec.cpp
+        crypto/rsa.spec.cpp
+        crypto/sha256.spec.cpp
         format/package_lock.spec.cpp
         format/tar.spec.cpp
         util/regex.spec.cpp
         util/args.spec.cpp
         proto/tcp.spec.cpp
+        proto/tls.spec.cpp
         )
 
 foreach (_test ${SOURCES})

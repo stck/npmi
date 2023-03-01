@@ -1,4 +1,5 @@
 # Generated from CLion C/C++ Code Style settings
+Standard: c++17
 BasedOnStyle: LLVM
 AccessModifierOffset: -2
 AlignAfterOpenBracket: Align
@@ -42,7 +43,7 @@ IndentCaseLabels: true
 IndentPPDirectives: AfterHash
 IndentWidth: 2
 KeepEmptyLinesAtTheStartOfBlocks: false
-MaxEmptyLinesToKeep: 2
+MaxEmptyLinesToKeep: 1
 NamespaceIndentation: All
 PointerAlignment: Left
 ReflowComments: true
@@ -64,3 +65,4 @@ SpacesInParentheses: false
 SpacesInSquareBrackets: false
 TabWidth: 2
 UseTab: Never
+SortIncludes: CaseSensitive
